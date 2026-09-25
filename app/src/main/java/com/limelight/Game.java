@@ -2054,18 +2054,33 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     // scanCode=1 lets us distinguish that keyboard ESC from the real Android
     // Back key/button, which uses a different scan code/source.
     public static void logEscDiag(String stage, KeyEvent event) {
+        final String message;
         if (event == null) {
-            LimeLog.info("ESC_DIAG " + stage + " event=null");
-            return;
+            message = "ESC_DIAG " + stage + " event=null";
+        } else {
+            message = "ESC_DIAG " + stage +
+                    "\naction=" + event.getAction() +
+                    " keyCode=" + event.getKeyCode() +
+                    " scan=" + event.getScanCode() +
+                    " dev=" + event.getDeviceId() +
+                    " src=0x" + Integer.toHexString(event.getSource());
         }
-        LimeLog.info("ESC_DIAG " + stage +
-                " action=" + event.getAction() +
-                " keyCode=" + event.getKeyCode() +
-                " scanCode=" + event.getScanCode() +
-                " deviceId=" + event.getDeviceId() +
-                " source=0x" + Integer.toHexString(event.getSource()) +
-                " flags=0x" + Integer.toHexString(event.getFlags()) +
-                " repeat=" + event.getRepeatCount());
+
+        LimeLog.info(message.replace('\n', ' '));
+
+        final Game currentGame = Game.instance;
+        if (currentGame != null) {
+            currentGame.runOnUiThread(() ->
+                    Toast.makeText(currentGame, message, Toast.LENGTH_LONG).show());
+        }
+    }
+
+    private void showBackDiag() {
+        final String message = "ESC_DIAG Game.onBackPressed" +
+                "\nconnected=" + connected +
+                " backMenu=" + prefConfig.enableBackMenu;
+        LimeLog.info(message.replace('\n', ' '));
+        runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_LONG).show());
     }
 
     public boolean isPhysicalEscapeEvent(KeyEvent event) {
@@ -4255,8 +4270,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
-        LimeLog.info("ESC_DIAG Game.onBackPressed connected=" + connected +
-                " enableBackMenu=" + prefConfig.enableBackMenu);
+        showBackDiag();
         // Android Back on this tablet is an edge gesture. Keep it completely
         // independent from keyboard ESC so it always retains Game Menu behavior.
         if(prefConfig.enableBackMenu){
