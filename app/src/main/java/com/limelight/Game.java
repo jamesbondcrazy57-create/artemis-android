@@ -2067,8 +2067,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         // Avoid controller classification, special-key handling, and any
-        // Activity/OS Back fallback. Windows VK_ESCAPE is 0x1B.
-        short esc = (short) 0x801B;
+        // Activity/OS Back fallback. Use the exact Moonlight/GFE encoding used
+        // by KeyboardTranslator: KEY_PREFIX 0x80 in the high byte + VK_ESCAPE 0x1B.
+        // (0x801B is NOT the same value; the protocol expects 0x1B80.)
+        short esc = (short) 0x1B80;
         if (down && event.getRepeatCount() == 0) {
             conn.sendKeyboardInput(esc, KeyboardPacket.KEY_DOWN, getModifierState(event), (byte) 0);
         } else if (!down) {
