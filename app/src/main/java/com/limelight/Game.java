@@ -2058,8 +2058,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return false;
         }
 
-        int keyCode = event.getKeyCode();
-        return (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_BACK) &&
+        // Kernel trace for the NuPhy Air75 V2-2 proves this hardware key is
+        // HID usage 0x00070029 -> Linux KEY_ESC. Do NOT classify KEYCODE_BACK
+        // as ESC: Back on this tablet is an Android edge gesture, not a key.
+        return event.getKeyCode() == KeyEvent.KEYCODE_ESCAPE &&
                 event.getScanCode() == 1 &&
                 event.getDeviceId() > 0 &&
                 (event.getSource() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD;
@@ -2075,7 +2077,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
             sendKeys(new short[]{27});
-            notePhysicalEscForwarded();
         }
 
         return event.getAction() == KeyEvent.ACTION_DOWN ||
@@ -4233,15 +4234,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
-        // On this Android build, a physical ESC arrives at Activity level as
-        // Back even though InputReader reports KEYCODE_ESCAPE. Convert that
-        // Back callback into the exact same ESC packet path proven to work in
-        // Game Menu -> Send Keys -> Esc. Keep normal Back behavior for events
-        // that were not preceded by a keyboard ESC.
-        if (connected && android.os.SystemClock.uptimeMillis() <= suppressBackFromPhysicalEscUntil) {
-            suppressBackFromPhysicalEscUntil = 0;
-            return;
-        }
+        // Android Back on this tablet is an edge gesture. Keep it completely
+        // independent from keyboard ESC so it always retains Game Menu behavior.
         if(prefConfig.enableBackMenu){
             showGameMenu(null);
             return;
