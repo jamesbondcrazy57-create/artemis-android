@@ -2054,33 +2054,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     // scanCode=1 lets us distinguish that keyboard ESC from the real Android
     // Back key/button, which uses a different scan code/source.
     public static void logEscDiag(String stage, KeyEvent event) {
-        final String message;
         if (event == null) {
-            message = "ESC_DIAG " + stage + " event=null";
-        } else {
-            message = "ESC_DIAG " + stage +
-                    "\naction=" + event.getAction() +
-                    " keyCode=" + event.getKeyCode() +
-                    " scan=" + event.getScanCode() +
-                    " dev=" + event.getDeviceId() +
-                    " src=0x" + Integer.toHexString(event.getSource());
+            LimeLog.info("ESC_DIAG " + stage + " event=null");
+            return;
         }
-
-        LimeLog.info(message.replace('\n', ' '));
-
-        final Game currentGame = Game.instance;
-        if (currentGame != null) {
-            currentGame.runOnUiThread(() ->
-                    Toast.makeText(currentGame, message, Toast.LENGTH_LONG).show());
-        }
-    }
-
-    private void showBackDiag() {
-        final String message = "ESC_DIAG Game.onBackPressed" +
-                "\nconnected=" + connected +
-                " backMenu=" + prefConfig.enableBackMenu;
-        LimeLog.info(message.replace('\n', ' '));
-        runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_LONG).show());
+        LimeLog.info("ESC_DIAG " + stage +
+                " action=" + event.getAction() +
+                " keyCode=" + event.getKeyCode() +
+                " scan=" + event.getScanCode() +
+                " dev=" + event.getDeviceId() +
+                " src=0x" + Integer.toHexString(event.getSource()));
     }
 
     public boolean isPhysicalEscapeEvent(KeyEvent event) {
@@ -2088,13 +2071,28 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return false;
         }
 
-        // Kernel trace for the NuPhy Air75 V2-2 proves this hardware key is
-        // HID usage 0x00070029 -> Linux KEY_ESC. Do NOT classify KEYCODE_BACK
-        // as ESC: Back on this tablet is an Android edge gesture, not a key.
-        return event.getKeyCode() == KeyEvent.KEYCODE_ESCAPE &&
+        boolean keyboardSource =
+                (event.getSource() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD;
+
+        // Native path: kernel/input framework preserves the NuPhy ESC.
+        boolean nativeEsc =
+                event.getKeyCode() == KeyEvent.KEYCODE_ESCAPE &&
                 event.getScanCode() == 1 &&
                 event.getDeviceId() > 0 &&
-                (event.getSource() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD;
+                keyboardSource;
+
+        // Nubia/ZTE path observed on this device: the exact same NuPhy ESC is
+        // converted before Game.onKeyDown() into a synthetic keyboard BACK:
+        // keyCode=BACK(4), scanCode=0, deviceId=-1, source=0x101.
+        // Android's edge Back gesture does not use this keyboard KeyEvent path,
+        // so it remains available for the Artemis Quick Menu.
+        boolean nubiaSyntheticEsc =
+                event.getKeyCode() == KeyEvent.KEYCODE_BACK &&
+                event.getScanCode() == 0 &&
+                event.getDeviceId() == -1 &&
+                keyboardSource;
+
+        return nativeEsc || nubiaSyntheticEsc;
     }
 
     // Send physical ESC through the exact path verified to work:
@@ -4270,7 +4268,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
-        showBackDiag();
         // Android Back on this tablet is an edge gesture. Keep it completely
         // independent from keyboard ESC so it always retains Game Menu behavior.
         if(prefConfig.enableBackMenu){
