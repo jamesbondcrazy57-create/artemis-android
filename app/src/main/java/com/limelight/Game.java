@@ -4236,6 +4236,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
+        // Android treats KEYCODE_ESCAPE as Back navigation on some devices/ROMs.
+        // While a stream is active, never allow that fallback to finish Game.
+        // Physical ESC is forwarded to the host by the keyboard paths above.
+        // The stream can still be exited through Artemis' in-stream menu.
+        if (connected) {
+            suppressBackFromPhysicalEscUntil = 0;
+            return;
+        }
+
         if (android.os.SystemClock.uptimeMillis() <= suppressBackFromPhysicalEscUntil) {
             suppressBackFromPhysicalEscUntil = 0;
             return;
