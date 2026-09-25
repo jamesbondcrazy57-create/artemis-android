@@ -2053,6 +2053,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     // KEYCODE_ESCAPE while others remap it to KEYCODE_BACK before delivery.
     // scanCode=1 lets us distinguish that keyboard ESC from the real Android
     // Back key/button, which uses a different scan code/source.
+    public static void logEscDiag(String stage, KeyEvent event) {
+        if (event == null) {
+            LimeLog.info("ESC_DIAG " + stage + " event=null");
+            return;
+        }
+        LimeLog.info("ESC_DIAG " + stage +
+                " action=" + event.getAction() +
+                " keyCode=" + event.getKeyCode() +
+                " scanCode=" + event.getScanCode() +
+                " deviceId=" + event.getDeviceId() +
+                " source=0x" + Integer.toHexString(event.getSource()) +
+                " flags=0x" + Integer.toHexString(event.getFlags()) +
+                " repeat=" + event.getRepeatCount());
+    }
+
     public boolean isPhysicalEscapeEvent(KeyEvent event) {
         if (event == null) {
             return false;
@@ -2085,6 +2100,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_ESCAPE || event.getKeyCode() == KeyEvent.KEYCODE_BACK || event.getScanCode() == 1) {
+            logEscDiag("Game.dispatchKeyEvent", event);
+        }
         if (sendPhysicalEscape(event)) {
             return true;
         }
@@ -2093,6 +2111,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_BACK || event.getScanCode() == 1) {
+            logEscDiag("Game.onKeyDown", event);
+        }
         if (sendPhysicalEscape(event)) {
             return true;
         }
@@ -4234,6 +4255,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
+        LimeLog.info("ESC_DIAG Game.onBackPressed connected=" + connected +
+                " enableBackMenu=" + prefConfig.enableBackMenu);
         // Android Back on this tablet is an edge gesture. Keep it completely
         // independent from keyboard ESC so it always retains Game Menu behavior.
         if(prefConfig.enableBackMenu){
