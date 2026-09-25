@@ -29,7 +29,11 @@ public class KeyboardAccessibilityService extends AccessibilityService {
             if (action == KeyEvent.ACTION_DOWN) {
                 //fix 小米平板esc键按钮映射错误 KEYCODE_BACK=4
                 if(event.getScanCode()==1){
-                    Game.instance.handleKeyDown(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE));
+                    KeyEvent escEvent = new KeyEvent(
+                            event.getDownTime(), event.getEventTime(), event.getAction(),
+                            KeyEvent.KEYCODE_ESCAPE, event.getRepeatCount(), event.getMetaState(),
+                            event.getDeviceId(), event.getScanCode(), event.getFlags(), event.getSource());
+                    Game.instance.handleKeyDown(escEvent);
                     return true;
                 }
                 Game.instance.handleKeyDown(event);
@@ -37,7 +41,11 @@ public class KeyboardAccessibilityService extends AccessibilityService {
             } else if (action == KeyEvent.ACTION_UP) {
                 //fix 小米平板esc键按钮映射错误 KEYCODE_BACK=4
                 if(event.getScanCode()==1){
-                    Game.instance.handleKeyUp(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ESCAPE));
+                    KeyEvent escEvent = new KeyEvent(
+                            event.getDownTime(), event.getEventTime(), event.getAction(),
+                            KeyEvent.KEYCODE_ESCAPE, event.getRepeatCount(), event.getMetaState(),
+                            event.getDeviceId(), event.getScanCode(), event.getFlags(), event.getSource());
+                    Game.instance.handleKeyUp(escEvent);
                     return true;
                 }
                 Game.instance.handleKeyUp(event);
