@@ -24,18 +24,9 @@ public class KeyboardAccessibilityService extends AccessibilityService {
         int keyCode = event.getKeyCode();
 
         if (Game.instance != null && Game.instance.connected && !BLACKLIST_KEYS.contains(keyCode)) {
-            // External physical ESC is already reported correctly by Android as
-            // keyCode=ESCAPE(111), scanCode=1. Accessibility filtering happens
-            // before Activity.dispatchKeyEvent(), so handle it HERE and bypass
-            // the normal Activity/key translation/back-navigation path entirely.
-            if (event.getScanCode() == 1 &&
-                    (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_BACK)) {
-                if (action == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-                    // Use the exact same path as Artemis' built-in
-                    // Game Menu -> Send Keys -> Esc action.
-                    Game.instance.sendKeys(new short[]{27});
-                }
-                // Consume both DOWN and UP. sendKeys() emits the host key-up.
+            // Use the same classifier and proven Send Keys path as Game.
+            // This also marks the short Back-suppression window.
+            if (Game.instance.sendPhysicalEscape(event)) {
                 return true;
             }
 
