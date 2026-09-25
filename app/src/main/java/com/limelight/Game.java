@@ -2089,15 +2089,32 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        // Handle ESC at the Window dispatch boundary before Android can
+        // translate it into Back. Use the exact Send Keys path that was
+        // verified to reach Windows on this device.
         if (isPhysicalEscape(event)) {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                return forwardPhysicalEscape(event, true);
-            } else if (event.getAction() == KeyEvent.ACTION_UP) {
-                return forwardPhysicalEscape(event, false);
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                sendKeys(new short[]{27});
+                notePhysicalEscForwarded();
             }
             return true;
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean dispatchKeyEventPreIme(KeyEvent event) {
+        // Some Android/OEM input stacks route ESC through the pre-IME Back
+        // path instead of normal dispatchKeyEvent(). Catch the original
+        // keyCode/scanCode here while ESC and Back are still distinguishable.
+        if (isPhysicalEscape(event)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                sendKeys(new short[]{27});
+                notePhysicalEscForwarded();
+            }
+            return true;
+        }
+        return super.dispatchKeyEventPreIme(event);
     }
 
     @Override
