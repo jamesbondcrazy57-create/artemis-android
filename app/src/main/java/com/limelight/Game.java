@@ -4243,10 +4243,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
-        // Suppress only the Back callback generated immediately after a
-        // physical ESC. Normal Android Back remains available for Game Menu.
-        if (android.os.SystemClock.uptimeMillis() <= suppressBackFromPhysicalEscUntil) {
+        // On this Android build, a physical ESC arrives at Activity level as
+        // Back even though InputReader reports KEYCODE_ESCAPE. Convert that
+        // Back callback into the exact same ESC packet path proven to work in
+        // Game Menu -> Send Keys -> Esc. Keep normal Back behavior for events
+        // that were not preceded by a keyboard ESC.
+        if (connected && android.os.SystemClock.uptimeMillis() <= suppressBackFromPhysicalEscUntil) {
             suppressBackFromPhysicalEscUntil = 0;
+            sendKeys(new short[]{27});
             return;
         }
         if(prefConfig.enableBackMenu){
