@@ -2061,7 +2061,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 (event.getSource() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD;
     }
 
-    private boolean forwardPhysicalEscape(KeyEvent event, boolean down) {
+    public boolean forwardPhysicalEscape(KeyEvent event, boolean down) {
         if (!isPhysicalEscape(event) || conn == null || !connected) {
             return false;
         }
