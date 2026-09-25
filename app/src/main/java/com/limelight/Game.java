@@ -2049,77 +2049,50 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return (byte) modifierFlags;
     }
 
-    // Physical ESC must never fall through to Android's Back navigation.
-    // The NuPhy Air75 V2 reports ESC correctly as keyCode=111/scanCode=1, so
-    // intercept the real hardware event at the Activity boundary and send it
-    // straight to the Moonlight keyboard channel.
-    private boolean isPhysicalEscape(KeyEvent event) {
-        return event != null &&
-                event.getKeyCode() == KeyEvent.KEYCODE_ESCAPE &&
+    // The NuPhy ESC is scanCode=1. Some Android/OEM paths preserve
+    // KEYCODE_ESCAPE while others remap it to KEYCODE_BACK before delivery.
+    // scanCode=1 lets us distinguish that keyboard ESC from the real Android
+    // Back key/button, which uses a different scan code/source.
+    public boolean isPhysicalEscapeEvent(KeyEvent event) {
+        if (event == null) {
+            return false;
+        }
+
+        int keyCode = event.getKeyCode();
+        return (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_BACK) &&
                 event.getScanCode() == 1 &&
                 event.getDeviceId() > 0 &&
                 (event.getSource() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD;
     }
 
-    public boolean forwardPhysicalEscape(KeyEvent event, boolean down) {
-        if (!isPhysicalEscape(event) || conn == null || !connected) {
+    // Send physical ESC through the exact path verified to work:
+    // Game Menu -> Send Keys -> Esc. Consume both DOWN and UP so Android
+    // cannot turn the same hardware key into Back navigation.
+    public boolean sendPhysicalEscape(KeyEvent event) {
+        if (!isPhysicalEscapeEvent(event) || conn == null || !connected) {
             return false;
         }
 
-        // Use the same translator and packet flags as the normal keyboard path.
-        // This avoids hard-coding the Moonlight/GFE key encoding.
-        short esc = keyboardTranslator.translate(
-                KeyEvent.KEYCODE_ESCAPE, event.getScanCode(), event.getDeviceId());
-        if (esc == 0) {
-            return false;
-        }
-        byte flags = keyboardTranslator.hasNormalizedMapping(
-                KeyEvent.KEYCODE_ESCAPE, event.getDeviceId())
-                ? 0 : MoonBridge.SS_KBE_FLAG_NON_NORMALIZED;
-        if (down && event.getRepeatCount() == 0) {
-            conn.sendKeyboardInput(esc, KeyboardPacket.KEY_DOWN, getModifierState(event), flags);
-        } else if (!down) {
-            conn.sendKeyboardInput(esc, KeyboardPacket.KEY_UP, getModifierState(event), flags);
+        if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+            sendKeys(new short[]{27});
+            notePhysicalEscForwarded();
         }
 
-        // Some OEM builds synthesize a Back navigation around physical ESC.
-        notePhysicalEscForwarded();
-        return true;
+        return event.getAction() == KeyEvent.ACTION_DOWN ||
+                event.getAction() == KeyEvent.ACTION_UP;
     }
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        // Handle ESC at the Window dispatch boundary before Android can
-        // translate it into Back. Use the exact Send Keys path that was
-        // verified to reach Windows on this device.
-        if (isPhysicalEscape(event)) {
-            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-                sendKeys(new short[]{27});
-                notePhysicalEscForwarded();
-            }
+        if (sendPhysicalEscape(event)) {
             return true;
         }
         return super.dispatchKeyEvent(event);
     }
 
     @Override
-    public boolean dispatchKeyEventPreIme(KeyEvent event) {
-        // Some Android/OEM input stacks route ESC through the pre-IME Back
-        // path instead of normal dispatchKeyEvent(). Catch the original
-        // keyCode/scanCode here while ESC and Back are still distinguishable.
-        if (isPhysicalEscape(event)) {
-            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-                sendKeys(new short[]{27});
-                notePhysicalEscForwarded();
-            }
-            return true;
-        }
-        return super.dispatchKeyEventPreIme(event);
-    }
-
-    @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (forwardPhysicalEscape(event, true)) {
+        if (sendPhysicalEscape(event)) {
             return true;
         }
         return handleKeyDown(event) || super.onKeyDown(keyCode, event);
@@ -2213,7 +2186,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
-        if (forwardPhysicalEscape(event, false)) {
+        if (sendPhysicalEscape(event)) {
             return true;
         }
         return handleKeyUp(event) || super.onKeyUp(keyCode, event);
@@ -4267,7 +4240,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // that were not preceded by a keyboard ESC.
         if (connected && android.os.SystemClock.uptimeMillis() <= suppressBackFromPhysicalEscUntil) {
             suppressBackFromPhysicalEscUntil = 0;
-            sendKeys(new short[]{27});
             return;
         }
         if(prefConfig.enableBackMenu){
