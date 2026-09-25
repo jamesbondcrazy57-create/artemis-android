@@ -22,50 +22,38 @@ public class KeyboardAccessibilityService extends AccessibilityService {
     public boolean onKeyEvent(KeyEvent event) {
         int action = event.getAction();
         int keyCode = event.getKeyCode();
-//        Toast.makeText(getApplicationContext(),"scancode:"+event.getScanCode()+",code:"+event.getKeyCode(),Toast.LENGTH_LONG).show();
-        //主要解决系统自带快捷键在pc端无法使用问题 home键 scancode=172 code- 3
+
         if (Game.instance != null && Game.instance.connected && !BLACKLIST_KEYS.contains(keyCode)) {
+            // External physical ESC is already reported correctly by Android as
+            // keyCode=ESCAPE(111), scanCode=1. Accessibility filtering happens
+            // before Activity.dispatchKeyEvent(), so handle it HERE and bypass
+            // the normal Activity/key translation/back-navigation path entirely.
+            if (event.getScanCode() == 1 &&
+                    (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_BACK)) {
+                if (action == KeyEvent.ACTION_DOWN) {
+                    Game.instance.forwardPhysicalEscape(
+                            new KeyEvent(event.getDownTime(), event.getEventTime(), action,
+                                    KeyEvent.KEYCODE_ESCAPE, event.getRepeatCount(), event.getMetaState(),
+                                    event.getDeviceId(), 1, event.getFlags(), event.getSource()), true);
+                } else if (action == KeyEvent.ACTION_UP) {
+                    Game.instance.forwardPhysicalEscape(
+                            new KeyEvent(event.getDownTime(), event.getEventTime(), action,
+                                    KeyEvent.KEYCODE_ESCAPE, event.getRepeatCount(), event.getMetaState(),
+                                    event.getDeviceId(), 1, event.getFlags(), event.getSource()), false);
+                }
+                // Always consume physical ESC so Android cannot turn it into Back.
+                return true;
+            }
 
             if (action == KeyEvent.ACTION_DOWN) {
-                //fix 小米平板esc键按钮映射错误 KEYCODE_BACK=4
-                if(event.getScanCode()==1){
-                    KeyEvent escEvent = new KeyEvent(
-                            event.getDownTime(), event.getEventTime(), event.getAction(),
-                            KeyEvent.KEYCODE_ESCAPE, event.getRepeatCount(), event.getMetaState(),
-                            event.getDeviceId(), event.getScanCode(), event.getFlags(), event.getSource());
-                    Game.instance.handleKeyDown(escEvent);
-                    return true;
-                }
                 Game.instance.handleKeyDown(event);
                 return true;
             } else if (action == KeyEvent.ACTION_UP) {
-                //fix 小米平板esc键按钮映射错误 KEYCODE_BACK=4
-                if(event.getScanCode()==1){
-                    KeyEvent escEvent = new KeyEvent(
-                            event.getDownTime(), event.getEventTime(), event.getAction(),
-                            KeyEvent.KEYCODE_ESCAPE, event.getRepeatCount(), event.getMetaState(),
-                            event.getDeviceId(), event.getScanCode(), event.getFlags(), event.getSource());
-                    Game.instance.handleKeyUp(escEvent);
-                    return true;
-                }
                 Game.instance.handleKeyUp(event);
                 return true;
             }
         }
-
         return super.onKeyEvent(event);
-    }
-
-    @Override
-    public void onServiceConnected() {
-        LimeLog.info("Keyboard service is connected");
-        AccessibilityServiceInfo info = new AccessibilityServiceInfo();
-        info.packageNames = new String[] { BuildConfig.APPLICATION_ID };
-        info.eventTypes = AccessibilityEvent.TYPES_ALL_MASK;
-        info.notificationTimeout = 100;
-        info.flags = AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
-        info.feedbackType = AccessibilityServiceInfo.FEEDBACK_SPOKEN;
-        setServiceInfo(info);
     }
 
     @Override
