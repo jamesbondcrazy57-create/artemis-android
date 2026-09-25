@@ -30,18 +30,12 @@ public class KeyboardAccessibilityService extends AccessibilityService {
             // the normal Activity/key translation/back-navigation path entirely.
             if (event.getScanCode() == 1 &&
                     (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_BACK)) {
-                if (action == KeyEvent.ACTION_DOWN) {
-                    Game.instance.forwardPhysicalEscape(
-                            new KeyEvent(event.getDownTime(), event.getEventTime(), action,
-                                    KeyEvent.KEYCODE_ESCAPE, event.getRepeatCount(), event.getMetaState(),
-                                    event.getDeviceId(), 1, event.getFlags(), event.getSource()), true);
-                } else if (action == KeyEvent.ACTION_UP) {
-                    Game.instance.forwardPhysicalEscape(
-                            new KeyEvent(event.getDownTime(), event.getEventTime(), action,
-                                    KeyEvent.KEYCODE_ESCAPE, event.getRepeatCount(), event.getMetaState(),
-                                    event.getDeviceId(), 1, event.getFlags(), event.getSource()), false);
+                if (action == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    // Use the exact same path as Artemis' built-in
+                    // Game Menu -> Send Keys -> Esc action.
+                    Game.instance.sendKeys(new short[]{27});
                 }
-                // Always consume physical ESC so Android cannot turn it into Back.
+                // Consume both DOWN and UP. sendKeys() emits the host key-up.
                 return true;
             }
 
