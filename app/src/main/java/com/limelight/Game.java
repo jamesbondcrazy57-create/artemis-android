@@ -144,6 +144,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         OnSystemUiVisibilityChangeListener, GameGestures, StreamContainer.InputCallbacks,
         ExternalControllerView.InputCallbacks,
         PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener {
+    // Accessibility may deliver physical ESC as a separate Android Back navigation.
+    // Suppress only the Back immediately associated with a physical ESC we forwarded.
+    private volatile long suppressBackFromPhysicalEscUntil = 0;
+
+    public void notePhysicalEscForwarded() {
+        suppressBackFromPhysicalEscUntil = android.os.SystemClock.uptimeMillis() + 350;
+    }
+
     public static Game instance;
 
     private int lastButtonState = 0;
@@ -4178,6 +4186,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
+        if (android.os.SystemClock.uptimeMillis() <= suppressBackFromPhysicalEscUntil) {
+            suppressBackFromPhysicalEscUntil = 0;
+            return;
+        }
         if(prefConfig.enableBackMenu){
             showGameMenu(null);
             return;
