@@ -159,6 +159,9 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
 
     @Override
     public boolean onKeyPreIme(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_BACK || event.getScanCode() == 1) {
+            Game.logEscDiag("StreamContainer.onKeyPreIme", event);
+        }
         // onKeyPreIme belongs to View (not Activity). This is the earliest
         // app-level point where OEM Android may expose keyboard ESC as BACK.
         // Game identifies the real NuPhy ESC by scanCode=1 and sends it via
