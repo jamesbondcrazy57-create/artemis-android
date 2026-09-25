@@ -2049,8 +2049,55 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return (byte) modifierFlags;
     }
 
+    // Physical ESC must never fall through to Android's Back navigation.
+    // The NuPhy Air75 V2 reports ESC correctly as keyCode=111/scanCode=1, so
+    // intercept the real hardware event at the Activity boundary and send it
+    // straight to the Moonlight keyboard channel.
+    private boolean isPhysicalEscape(KeyEvent event) {
+        return event != null &&
+                event.getKeyCode() == KeyEvent.KEYCODE_ESCAPE &&
+                event.getScanCode() == 1 &&
+                event.getDeviceId() > 0 &&
+                (event.getSource() & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD;
+    }
+
+    private boolean forwardPhysicalEscape(KeyEvent event, boolean down) {
+        if (!isPhysicalEscape(event) || conn == null || !connected) {
+            return false;
+        }
+
+        // Avoid controller classification, special-key handling, and any
+        // Activity/OS Back fallback. Windows VK_ESCAPE is 0x1B.
+        short esc = (short) 0x801B;
+        if (down && event.getRepeatCount() == 0) {
+            conn.sendKeyboardInput(esc, KeyboardPacket.KEY_DOWN, getModifierState(event), (byte) 0);
+        } else if (!down) {
+            conn.sendKeyboardInput(esc, KeyboardPacket.KEY_UP, getModifierState(event), (byte) 0);
+        }
+
+        // Some OEM builds synthesize a Back navigation around physical ESC.
+        notePhysicalEscForwarded();
+        return true;
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (isPhysicalEscape(event)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                return forwardPhysicalEscape(event, true);
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                return forwardPhysicalEscape(event, false);
+            }
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (forwardPhysicalEscape(event, true)) {
+            return true;
+        }
         return handleKeyDown(event) || super.onKeyDown(keyCode, event);
     }
 
@@ -2142,6 +2189,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (forwardPhysicalEscape(event, false)) {
+            return true;
+        }
         return handleKeyUp(event) || super.onKeyUp(keyCode, event);
     }
 
