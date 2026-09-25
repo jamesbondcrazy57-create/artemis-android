@@ -2066,15 +2066,20 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return false;
         }
 
-        // Avoid controller classification, special-key handling, and any
-        // Activity/OS Back fallback. Use the exact Moonlight/GFE encoding used
-        // by KeyboardTranslator: KEY_PREFIX 0x80 in the high byte + VK_ESCAPE 0x1B.
-        // (0x801B is NOT the same value; the protocol expects 0x1B80.)
-        short esc = (short) 0x1B80;
+        // Use the same translator and packet flags as the normal keyboard path.
+        // This avoids hard-coding the Moonlight/GFE key encoding.
+        short esc = keyboardTranslator.translate(
+                KeyEvent.KEYCODE_ESCAPE, event.getScanCode(), event.getDeviceId());
+        if (esc == 0) {
+            return false;
+        }
+        byte flags = keyboardTranslator.hasNormalizedMapping(
+                KeyEvent.KEYCODE_ESCAPE, event.getDeviceId())
+                ? 0 : MoonBridge.SS_KBE_FLAG_NON_NORMALIZED;
         if (down && event.getRepeatCount() == 0) {
-            conn.sendKeyboardInput(esc, KeyboardPacket.KEY_DOWN, getModifierState(event), (byte) 0);
+            conn.sendKeyboardInput(esc, KeyboardPacket.KEY_DOWN, getModifierState(event), flags);
         } else if (!down) {
-            conn.sendKeyboardInput(esc, KeyboardPacket.KEY_UP, getModifierState(event), (byte) 0);
+            conn.sendKeyboardInput(esc, KeyboardPacket.KEY_UP, getModifierState(event), flags);
         }
 
         // Some OEM builds synthesize a Back navigation around physical ESC.
